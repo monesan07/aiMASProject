@@ -6,6 +6,9 @@
 
 set -e
 
+# Ensure script always runs from its own directory
+cd "$(dirname "$0")"
+
 echo "🚀 Starting Unified Vercel Deployment..."
 
 # 1. Check for Vercel CLI
