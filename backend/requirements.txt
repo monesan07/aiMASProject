@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+langgraph
+langchain
+langchain-google-genai
+motor
+pinecone-client
+pydantic
+python-dotenv
