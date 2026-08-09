@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -9,14 +9,102 @@ import {
   addEdge,
   Background,
   Controls,
-  MarkerType,
   Connection,
   Edge,
   useReactFlow,
+  Handle,
+  Position
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
-// Custom Sidebar for Drag and Drop
+// -----------------------------
+// Custom Node Implementation
+// -----------------------------
+const CustomNode = ({ data, selected }: any) => {
+  const isOutput = data.isOutput;
+  const isResource = data.label.includes("Pinecone") || data.label.includes("MCP");
+  
+  // Dynamic styling based on state and type
+  const baseStyle = "px-4 py-3 shadow-lg rounded-xl border-2 transition-all duration-200 min-w-[150px] text-center flex flex-col items-center justify-center";
+  
+  let bg = "bg-slate-800";
+  let border = selected ? "border-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.5)]" : "border-slate-700";
+  let text = "text-slate-200";
+  
+  if (data.isActive) {
+    bg = "bg-indigo-600";
+    border = "border-indigo-400 shadow-[0_0_25px_rgba(99,102,241,0.8)] scale-105";
+    text = "text-white font-bold";
+  } else if (isResource) {
+    bg = data.label.includes("Pinecone") ? "bg-emerald-900/50" : "bg-purple-900/50";
+    border = selected ? (data.label.includes("Pinecone") ? "border-emerald-400" : "border-purple-400") : "border-slate-700";
+    text = data.label.includes("Pinecone") ? "text-emerald-300" : "text-purple-300";
+  }
+
+  return (
+    <div className={`${baseStyle} ${bg} ${border}`}>
+      {/* Target Handle (Top) */}
+      {!data.isSourceOnly && (
+        <Handle 
+          type="target" 
+          position={Position.Top} 
+          className="w-3 h-3 bg-indigo-400 border-2 border-slate-900" 
+        />
+      )}
+      
+      <div className={`text-sm ${text}`}>
+        {data.label}
+      </div>
+
+      {/* Source Handle (Bottom) */}
+      {!isOutput && (
+        <Handle 
+          type="source" 
+          position={Position.Bottom} 
+          className="w-3 h-3 bg-indigo-400 border-2 border-slate-900" 
+        />
+      )}
+    </div>
+  );
+};
+
+const nodeTypes = { custom: CustomNode };
+
+// -----------------------------
+// Initial Data
+// -----------------------------
+const initialNodes = [
+  {
+    id: 'Supervisor',
+    type: 'custom',
+    position: { x: 250, y: 50 },
+    data: { label: '👨‍💼 Supervisor', isSourceOnly: true },
+  },
+  {
+    id: 'Researcher',
+    type: 'custom',
+    position: { x: 100, y: 200 },
+    data: { label: '🔍 Researcher' },
+  },
+  {
+    id: 'Writer',
+    type: 'custom',
+    position: { x: 400, y: 200 },
+    data: { label: '✍️ Writer' },
+  },
+];
+
+const initialEdges = [
+  { id: 'e1-2', source: 'Supervisor', target: 'Researcher', animated: true, style: { stroke: '#818cf8', strokeWidth: 2 } },
+  { id: 'e1-3', source: 'Supervisor', target: 'Writer', animated: true, style: { stroke: '#818cf8', strokeWidth: 2 } },
+];
+
+let idCounter = 0;
+const getId = () => `dndnode_${idCounter++}`;
+
+// -----------------------------
+// Sidebar Component
+// -----------------------------
 const Sidebar = () => {
   const onDragStart = (event: React.DragEvent, nodeType: string, label: string) => {
     event.dataTransfer.setData('application/reactflow', nodeType);
@@ -30,7 +118,7 @@ const Sidebar = () => {
       
       <div 
         className="bg-slate-800 border border-slate-700 p-3 rounded-lg cursor-grab hover:bg-slate-700 hover:border-indigo-500 transition-colors shadow-sm"
-        onDragStart={(event) => onDragStart(event, 'default', '👨‍💼 Supervisor')}
+        onDragStart={(event) => onDragStart(event, 'custom', '👨‍💼 Supervisor')}
         draggable
       >
         <span className="text-slate-200 font-medium text-sm">Supervisor Agent</span>
@@ -39,7 +127,7 @@ const Sidebar = () => {
 
       <div 
         className="bg-slate-800 border border-slate-700 p-3 rounded-lg cursor-grab hover:bg-slate-700 hover:border-indigo-500 transition-colors shadow-sm"
-        onDragStart={(event) => onDragStart(event, 'default', '🔍 Researcher')}
+        onDragStart={(event) => onDragStart(event, 'custom', '🔍 Researcher')}
         draggable
       >
         <span className="text-slate-200 font-medium text-sm">Researcher Agent</span>
@@ -48,7 +136,7 @@ const Sidebar = () => {
 
       <div 
         className="bg-slate-800 border border-slate-700 p-3 rounded-lg cursor-grab hover:bg-slate-700 hover:border-indigo-500 transition-colors shadow-sm"
-        onDragStart={(event) => onDragStart(event, 'default', '✍️ Writer')}
+        onDragStart={(event) => onDragStart(event, 'custom', '✍️ Writer')}
         draggable
       >
         <span className="text-slate-200 font-medium text-sm">Writer Agent</span>
@@ -59,7 +147,7 @@ const Sidebar = () => {
       
       <div 
         className="bg-emerald-900/30 border border-emerald-800 p-3 rounded-lg cursor-grab hover:bg-emerald-800/40 hover:border-emerald-500 transition-colors shadow-sm"
-        onDragStart={(event) => onDragStart(event, 'output', '🌲 Pinecone DB')}
+        onDragStart={(event) => onDragStart(event, 'custom', '🌲 Pinecone DB')}
         draggable
       >
         <span className="text-emerald-400 font-medium text-sm">Pinecone DB</span>
@@ -67,7 +155,7 @@ const Sidebar = () => {
 
       <div 
         className="bg-purple-900/30 border border-purple-800 p-3 rounded-lg cursor-grab hover:bg-purple-800/40 hover:border-purple-500 transition-colors shadow-sm"
-        onDragStart={(event) => onDragStart(event, 'output', '🔌 MCP Server')}
+        onDragStart={(event) => onDragStart(event, 'custom', '🔌 MCP Server')}
         draggable
       >
         <span className="text-purple-400 font-medium text-sm">MCP Server</span>
@@ -76,38 +164,9 @@ const Sidebar = () => {
   );
 };
 
-const initialNodes = [
-  {
-    id: 'Supervisor',
-    type: 'default',
-    position: { x: 250, y: 50 },
-    data: { label: '👨‍💼 Supervisor' },
-    style: { background: '#1e293b', color: '#f8fafc', border: '1px solid #334155', borderRadius: '8px', padding: '10px 20px' },
-  },
-  {
-    id: 'Researcher',
-    type: 'default',
-    position: { x: 100, y: 200 },
-    data: { label: '🔍 Researcher' },
-    style: { background: '#1e293b', color: '#f8fafc', border: '1px solid #334155', borderRadius: '8px', padding: '10px 20px' },
-  },
-  {
-    id: 'Writer',
-    type: 'default',
-    position: { x: 400, y: 200 },
-    data: { label: '✍️ Writer' },
-    style: { background: '#1e293b', color: '#f8fafc', border: '1px solid #334155', borderRadius: '8px', padding: '10px 20px' },
-  },
-];
-
-const initialEdges = [
-  { id: 'e1-2', source: 'Supervisor', target: 'Researcher', animated: true, style: { stroke: '#64748b', strokeWidth: 2 } },
-  { id: 'e1-3', source: 'Supervisor', target: 'Writer', animated: true, style: { stroke: '#64748b', strokeWidth: 2 } },
-];
-
-let id = 0;
-const getId = () => `dndnode_${id++}`;
-
+// -----------------------------
+// Main Flow Component
+// -----------------------------
 const DnDFlow = ({ activeNode }: { activeNode: string | null }) => {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -140,20 +199,13 @@ const DnDFlow = ({ activeNode }: { activeNode: string | null }) => {
         y: event.clientY,
       });
 
-      // Style based on type
-      let style = { background: '#1e293b', color: '#f8fafc', border: '1px solid #334155', borderRadius: '8px', padding: '10px 20px' };
-      if (label.includes('Pinecone')) {
-        style = { background: '#064e3b', color: '#34d399', border: '1px solid #059669', borderRadius: '8px', padding: '10px 20px' };
-      } else if (label.includes('MCP')) {
-        style = { background: '#4c1d95', color: '#c4b5fd', border: '1px solid #7c3aed', borderRadius: '8px', padding: '10px 20px' };
-      }
+      const isOutput = label.includes('Pinecone') || label.includes('MCP');
 
       const newNode = {
         id: getId(),
         type,
         position,
-        data: { label },
-        style,
+        data: { label, isOutput },
       };
 
       setNodes((nds) => nds.concat(newNode));
@@ -161,48 +213,30 @@ const DnDFlow = ({ activeNode }: { activeNode: string | null }) => {
     [screenToFlowPosition, setNodes]
   );
 
-  // Update nodes visually based on the active node
+  // Safely update nodes' isActive state without blowing away position data
   useEffect(() => {
     setNodes((nds) =>
       nds.map((node) => {
-        // Simple string matching to highlight the active node
-        const isActive = activeNode && node.data.label.toString().includes(activeNode);
+        const isActive = activeNode ? node.data.label.includes(activeNode) : false;
         
-        if (isActive) {
+        // Only update if the active state actually changed to avoid jitter
+        if (node.data.isActive !== isActive) {
           return {
             ...node,
-            style: {
-              ...node.style,
-              background: '#4f46e5',
-              border: '2px solid #818cf8',
-              boxShadow: '0 0 20px 0px rgba(99, 102, 241, 0.8)',
-              transform: 'scale(1.1)',
-            },
+            data: {
+              ...node.data,
+              isActive
+            }
           };
         }
-        
-        // Reset non-active nodes to default
-        let defaultStyle = { background: '#1e293b', color: '#f8fafc', border: '1px solid #334155', borderRadius: '8px', padding: '10px 20px' };
-        if (node.data.label.toString().includes('Pinecone')) {
-          defaultStyle = { background: '#064e3b', color: '#34d399', border: '1px solid #059669', borderRadius: '8px', padding: '10px 20px' };
-        } else if (node.data.label.toString().includes('MCP')) {
-          defaultStyle = { background: '#4c1d95', color: '#c4b5fd', border: '1px solid #7c3aed', borderRadius: '8px', padding: '10px 20px' };
-        }
-
-        return {
-          ...node,
-          style: {
-            ...defaultStyle,
-            opacity: activeNode ? 0.6 : 1,
-          },
-        };
+        return node;
       })
     );
   }, [activeNode, setNodes]);
 
   return (
     <div className="flex w-full h-full relative flex-row" ref={reactFlowWrapper}>
-      <div className="flex-1 h-full relative">
+      <div className="flex-1 h-full relative bg-slate-950">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -211,11 +245,12 @@ const DnDFlow = ({ activeNode }: { activeNode: string | null }) => {
           onConnect={onConnect}
           onDrop={onDrop}
           onDragOver={onDragOver}
+          nodeTypes={nodeTypes}
           fitView
           colorMode="dark"
           className="bg-transparent"
         >
-          <Background gap={16} color="#334155" />
+          <Background gap={16} color="#1e293b" />
           <Controls position="bottom-left" />
         </ReactFlow>
       </div>
