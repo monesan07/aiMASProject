@@ -39,14 +39,13 @@ def writer_node(state):
 
 def supervisor_node(state):
     print("--- SUPERVISOR ---")
-    messages = state["messages"]
     
-    # Simple rule-based routing for demonstration
-    last_message = messages[-1].content.lower()
+    sender = state.get("sender")
     
-    if "research" in last_message or state.get("sender") == "user":
+    # Simple deterministic routing based on the last agent
+    if sender == "user":
         next_agent = "Researcher"
-    elif state.get("sender") == "Researcher":
+    elif sender == "Researcher":
         next_agent = "Writer"
     else:
         next_agent = "FINISH"
