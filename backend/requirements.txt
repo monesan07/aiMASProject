@@ -5,11 +5,14 @@ langchain
 langchain-core
 langchain-google-genai
 langchain-groq
+langchain-openai
+langchain-ollama
 langgraph-checkpoint-mongodb
 motor
-pinecone-client
+pinecone
 pymongo
 pydantic
 python-dotenv
 groq
 httpx
+openai

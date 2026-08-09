@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useMemo } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -17,6 +17,7 @@ import {
   NodeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 
 type CustomNodeData = {
   label: string;
@@ -28,7 +29,7 @@ type CustomNodeData = {
 const CustomNode = ({ data, selected }: NodeProps & { data: CustomNodeData }) => {
   const isResource = data.label.includes("Pinecone") || data.label.includes("MCP") || data.label.includes("MongoDB");
   const isPinecone = data.label.includes("Pinecone");
-  const isMCP = data.label.includes("MCP");
+  const isMCP = data.label.includes("MCP") || data.label.includes("Search") || data.label.includes("GitHub") || data.label.includes("Slack");
   const isMongo = data.label.includes("MongoDB");
 
   let cls = "bg-white border-slate-300 text-slate-700 shadow-sm";
@@ -60,9 +61,9 @@ const CustomNode = ({ data, selected }: NodeProps & { data: CustomNodeData }) =>
 const nodeTypes = { custom: CustomNode };
 
 const initialNodes = [
-  { id: 'Supervisor', type: 'custom', position: { x: 250, y: 50 }, data: { label: '👨‍💼 Supervisor', isSourceOnly: true } },
-  { id: 'Researcher', type: 'custom', position: { x: 80, y: 200 }, data: { label: '🔍 Researcher' } },
-  { id: 'Writer', type: 'custom', position: { x: 420, y: 200 }, data: { label: '✍️ Writer' } },
+  { id: 'Supervisor', type: 'custom', position: { x: 250, y: 50 }, data: { label: '👨‍💼 Supervisor', isSourceOnly: true } as CustomNodeData },
+  { id: 'Researcher', type: 'custom', position: { x: 80, y: 200 }, data: { label: '🔍 Researcher' } as CustomNodeData },
+  { id: 'Writer', type: 'custom', position: { x: 420, y: 200 }, data: { label: '✍️ Writer' } as CustomNodeData },
 ];
 
 const initialEdges = [
@@ -73,52 +74,109 @@ const initialEdges = [
 let nodeIdCounter = 0;
 const getNewNodeId = () => `node_${nodeIdCounter++}`;
 
+const AGENT_PALETTE = [
+  { label: '👨‍💼 Supervisor', desc: 'Routes tasks' },
+  { label: '🔍 Researcher', desc: 'Retrieves context' },
+  { label: '✍️ Writer', desc: 'Drafts response' },
+  { label: '🧠 Analyzer', desc: 'Pattern analysis' },
+  { label: '🔧 Executor', desc: 'Runs tools' },
+  { label: '🛡️ Guardrail', desc: 'Safety checks' },
+];
+
+const MCP_CATEGORIES: { cat: string; color: string; tools: { label: string; key: string; desc: string }[] }[] = [
+  {
+    cat: "Search",
+    color: "blue",
+    tools: [
+      { label: '🌐 Brave Search', key: 'brave_search', desc: 'Web search via Brave' },
+      { label: '🔍 Exa Search', key: 'exa_search', desc: 'AI-powered semantic search' },
+      { label: '📰 Perplexity', key: 'perplexity', desc: 'Real-time search with citations' },
+    ],
+  },
+  {
+    cat: "Storage & DB",
+    color: "orange",
+    tools: [
+      { label: '📁 Filesystem', key: 'filesystem', desc: 'Local file system access' },
+      { label: '🗃️ PostgreSQL', key: 'postgresql', desc: 'Postgres database queries' },
+      { label: '🔥 Firebase', key: 'firebase', desc: 'Firebase realtime database' },
+      { label: '🪣 AWS S3', key: 'aws_s3', desc: 'Amazon S3 object storage' },
+    ],
+  },
+  {
+    cat: "DevOps",
+    color: "gray",
+    tools: [
+      { label: '🐙 GitHub', key: 'github', desc: 'Repository management' },
+      { label: '🦊 GitLab', key: 'gitlab', desc: 'GitLab CI/CD integration' },
+      { label: '🐳 Docker', key: 'docker', desc: 'Container management' },
+    ],
+  },
+  {
+    cat: "Communication",
+    color: "purple",
+    tools: [
+      { label: '💬 Slack', key: 'slack', desc: 'Team messaging' },
+      { label: '✉️ Email SMTP', key: 'email', desc: 'Send & receive emails' },
+      { label: '📱 Telegram', key: 'telegram', desc: 'Telegram bot messaging' },
+    ],
+  },
+  {
+    cat: "Productivity",
+    color: "pink",
+    tools: [
+      { label: '🗓️ Google Calendar', key: 'gcal', desc: 'Calendar management' },
+      { label: '📝 Notion', key: 'notion', desc: 'Notes & documentation' },
+      { label: '📊 Google Sheets', key: 'gsheets', desc: 'Spreadsheet operations' },
+    ],
+  },
+  {
+    cat: "AI & Data",
+    color: "amber",
+    tools: [
+      { label: '🤖 Anthropic MCP', key: 'anthropic', desc: 'Claude tool use & artifacts' },
+      { label: '🌤️ Weather API', key: 'weather', desc: 'Real-time weather data' },
+      { label: '🔌 Custom Server', key: 'custom', desc: 'Your custom MCP endpoint' },
+    ],
+  },
+];
+
+const RESOURCE_PALETTE = [
+  { label: '🌲 Pinecone DB' },
+  { label: '🗄️ MongoDB' },
+  { label: '🔗 REST API' },
+];
+
 interface SidebarProps {
   selectedMcpTools: string[];
   onToggleMcp: (tool: string) => void;
 }
 
 const Sidebar = ({ selectedMcpTools, onToggleMcp }: SidebarProps) => {
+  const [expandedCats, setExpandedCats] = useState<string[]>(["Search"]);
+
   const onDragStart = (event: React.DragEvent, label: string) => {
     event.dataTransfer.setData('application/label', label);
     event.dataTransfer.effectAllowed = 'move';
   };
 
-  const agents = [
-    { label: '👨‍💼 Supervisor', desc: 'Routes tasks' },
-    { label: '🔍 Researcher', desc: 'Retrieves context' },
-    { label: '✍️ Writer', desc: 'Drafts response' },
-    { label: '🧠 Analyzer', desc: 'Pattern analysis' },
-    { label: '🔧 Executor', desc: 'Runs tools' },
-    { label: '🛡️ Guardrail', desc: 'Safety checks' },
-  ];
-
-  const mcpTools = [
-    { label: '🌐 Brave Search MCP', color: 'blue' },
-    { label: '📁 Filesystem MCP', color: 'orange' },
-    { label: '🐙 GitHub MCP', color: 'gray' },
-    { label: '💬 Slack MCP', color: 'purple' },
-    { label: '🗃️ PostgreSQL MCP', color: 'indigo' },
-    { label: '🔌 Custom MCP', color: 'green' },
-  ];
-
-  const resources = [
-    { label: '🌲 Pinecone DB' },
-    { label: '🗄️ MongoDB' },
-    { label: '🔗 REST API' },
-  ];
+  const toggleCat = (cat: string) => {
+    setExpandedCats(prev =>
+      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+    );
+  };
 
   return (
-    <div className="w-56 flex-shrink-0 h-full bg-white border-l border-slate-200 flex flex-col overflow-hidden">
+    <div className="w-60 flex-shrink-0 h-full bg-white border-l border-slate-200 flex flex-col overflow-hidden">
       <div className="overflow-y-auto flex-1">
         {/* Agents */}
         <div className="p-3 border-b border-slate-100">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Agents</p>
           <div className="flex flex-col gap-1.5">
-            {agents.map((a) => (
+            {AGENT_PALETTE.map((a) => (
               <div
                 key={a.label}
-                className="bg-slate-50 border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 p-2.5 rounded-lg cursor-grab transition-all"
+                className="bg-slate-50 border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 p-2 rounded-lg cursor-grab transition-all"
                 onDragStart={(e) => onDragStart(e, a.label)}
                 draggable
               >
@@ -129,29 +187,58 @@ const Sidebar = ({ selectedMcpTools, onToggleMcp }: SidebarProps) => {
           </div>
         </div>
 
-        {/* MCP Tools */}
+        {/* MCP Tools grouped by category */}
         <div className="p-3 border-b border-slate-100">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">MCP Servers</p>
-          <div className="flex flex-col gap-1.5">
-            {mcpTools.map((tool) => {
-              const active = selectedMcpTools.includes(tool.label);
+          <div className="flex flex-col gap-1">
+            {MCP_CATEGORIES.map(({ cat, tools }) => {
+              const expanded = expandedCats.includes(cat);
+              const activeCount = tools.filter(t => selectedMcpTools.includes(t.key)).length;
               return (
-                <div key={tool.label} className="flex items-center gap-2 group">
+                <div key={cat} className="border border-slate-100 rounded-lg overflow-hidden">
                   <button
-                    onClick={() => onToggleMcp(tool.label)}
-                    className={`w-4 h-4 rounded border-2 flex-shrink-0 transition-all ${
-                      active ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-slate-300 hover:border-indigo-400'
-                    }`}
+                    onClick={() => toggleCat(cat)}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 transition-all text-left"
                   >
-                    {active && <svg className="w-full h-full text-white p-px" fill="none" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">{cat}</span>
+                    <div className="flex items-center gap-1">
+                      {activeCount > 0 && (
+                        <span className="text-[9px] bg-indigo-600 text-white rounded-full px-1.5 py-0.5 font-bold">{activeCount}</span>
+                      )}
+                      {expanded ? <ChevronDown className="w-3 h-3 text-slate-400" /> : <ChevronRight className="w-3 h-3 text-slate-400" />}
+                    </div>
                   </button>
-                  <div
-                    className={`flex-1 bg-slate-50 border ${active ? 'border-indigo-300 bg-indigo-50' : 'border-slate-200'} p-2 rounded-lg cursor-grab transition-all text-xs`}
-                    onDragStart={(e) => onDragStart(e, tool.label)}
-                    draggable
-                  >
-                    <span className="text-slate-700 font-medium">{tool.label}</span>
-                  </div>
+                  {expanded && (
+                    <div className="p-1.5 space-y-1 bg-white">
+                      {tools.map((tool) => {
+                        const active = selectedMcpTools.includes(tool.key);
+                        return (
+                          <div key={tool.key} className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => onToggleMcp(tool.key)}
+                              className={`w-3.5 h-3.5 rounded border-2 flex-shrink-0 transition-all ${
+                                active ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-slate-300 hover:border-indigo-400'
+                              }`}
+                            >
+                              {active && (
+                                <svg className="w-full h-full text-white p-px" fill="none" viewBox="0 0 12 12">
+                                  <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                              )}
+                            </button>
+                            <div
+                              className={`flex-1 border ${active ? 'border-indigo-200 bg-indigo-50' : 'border-slate-200 bg-slate-50'} px-2 py-1.5 rounded-md cursor-grab transition-all`}
+                              onDragStart={(e) => onDragStart(e, tool.label)}
+                              draggable
+                            >
+                              <span className="text-slate-700 font-medium text-[11px]">{tool.label}</span>
+                              <div className="text-[9px] text-slate-400 mt-0.5">{tool.desc}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -162,7 +249,7 @@ const Sidebar = ({ selectedMcpTools, onToggleMcp }: SidebarProps) => {
         <div className="p-3">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Resources</p>
           <div className="flex flex-col gap-1.5">
-            {resources.map((r) => (
+            {RESOURCE_PALETTE.map((r) => (
               <div
                 key={r.label}
                 className="bg-slate-50 border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50 p-2.5 rounded-lg cursor-grab transition-all text-xs text-slate-700 font-medium"
@@ -193,7 +280,11 @@ const DnDFlow = ({ activeNode, selectedMcpTools, onToggleMcp }: DnDFlowProps) =>
 
   const onConnect = useCallback(
     (params: Connection | Edge) =>
-      setEdges((eds) => addEdge({ ...params, animated: true, style: { stroke: '#6366f1', strokeWidth: 2 } }, eds)),
+      setEdges((eds) => addEdge(params, eds).map(e =>
+        e.id === (params as any).id || (e.source === params.source && e.target === params.target)
+          ? { ...e, animated: true, style: { stroke: '#6366f1', strokeWidth: 2 } }
+          : e
+      ) as any),
     [setEdges]
   );
 
@@ -208,8 +299,8 @@ const DnDFlow = ({ activeNode, selectedMcpTools, onToggleMcp }: DnDFlowProps) =>
       const label = event.dataTransfer.getData('application/label');
       if (!label) return;
       const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-      const isResource = label.includes('Pinecone') || label.includes('MCP') || label.includes('MongoDB') || label.includes('API');
-      setNodes((nds) => nds.concat({ id: getNewNodeId(), type: 'custom', position, data: { label, isOutput: isResource } }));
+      const isResource = label.includes('Pinecone') || label.includes('MCP') || label.includes('MongoDB') || label.includes('API') || label.includes('Search') || label.includes('GitHub') || label.includes('Slack');
+      setNodes((nds) => nds.concat({ id: getNewNodeId(), type: 'custom', position, data: { label, isOutput: isResource } } as any));
     },
     [screenToFlowPosition, setNodes]
   );
@@ -217,16 +308,16 @@ const DnDFlow = ({ activeNode, selectedMcpTools, onToggleMcp }: DnDFlowProps) =>
   useEffect(() => {
     setNodes((nds) =>
       nds.map((node) => {
-        const isActive = activeNode ? node.data.label.includes(activeNode) : false;
-        if (node.data.isActive === isActive) return node;
+        const isActive = activeNode ? (node.data as any).label.includes(activeNode) : false;
+        if ((node.data as any).isActive === isActive) return node;
         return { ...node, data: { ...node.data, isActive } };
-      })
+      }) as any
     );
   }, [activeNode, setNodes]);
 
   return (
     <div className="flex w-full h-full" ref={reactFlowWrapper}>
-      <div className="flex-1 h-full bg-slate-50">
+      <div className="flex-1 h-full bg-gray-50">
         <ReactFlow
           nodes={nodes}
           edges={edges}

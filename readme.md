@@ -1,89 +1,159 @@
 # Multi-Agent System (MAS) Demonstration Project
 
-This project is a comprehensive **Agentic AI Demonstration** built to showcase advanced concepts like Orchestration, Agent-to-Agent (A2A) communication, Model Context Protocol (MCP), and Retrieval-Augmented Generation (RAG).
+A production-grade **Agentic AI Demo** showcasing LangGraph orchestration, RAG pipelines, Model Context Protocol (MCP), multi-provider free LLM support, deterministic guardrails, and a comprehensive observability dashboard.
 
-It was designed specifically to showcase a premium understanding of modern AI architectures during technical interviews.
+> **Deep-dive:** See [ARCHITECTURE.md](./ARCHITECTURE.md) for the full technical architecture — system diagrams, data flow walkthroughs, API schemas, file structure, and deployment guide.
 
-## 🏗 Architecture & Tech Stack
+---
 
-* **Frontend:** Next.js (React), Tailwind CSS, React Flow (for dynamic drag-and-drop workflow visualization).
-* **Backend:** Python, FastAPI, LangGraph (for stateful agent orchestration).
-* **LLM Engine:** Gemini 1.5 Pro (via `langchain-google-genai`).
-* **Vector Database (RAG):** Pinecone.
-* **Agent Memory / State:** MongoDB (via async `motor`).
+## Architecture & Tech Stack
 
-## 🚀 Running Locally
+| Layer | Technology |
+|-------|-----------|
+| **Frontend** | Next.js 16 · React 19 · Tailwind CSS v4 · React Flow (DnD canvas) |
+| **Backend** | Python · FastAPI · LangGraph (stateful agent orchestration) |
+| **LLM Engine** | Groq · Gemini · Together.ai · OpenRouter · HuggingFace · Ollama (all free) |
+| **Vector DB (RAG)** | Pinecone (768-dim embeddings via Google AI) |
+| **Agent State** | MongoDB Atlas (async via motor) |
+| **Guardrails** | LlamaFirewall · NeMo Guardrails · Custom NLI (sidecar thread) |
 
-### 1. Start the Frontend
-The frontend features a split UI: a multi-agent chat interface and a live Drag-and-Drop (DnD) canvas simulation.
+---
+
+## Features
+
+### Workspace Tab
+- **Multi-agent chat** — Supervisor → Researcher → Writer pipeline with real-time agent activation indicators
+- **Live A2A canvas** — Drag-and-drop React Flow graph; connect agents, MCP tools, and vector stores
+- **MCP tool selector** — 18+ tools across 6 categories (Search, Storage, DevOps, Communication, Productivity, AI)
+- **Guardrail sidecar** — 10 configurable safety checks run in parallel, displayed with pass/fail scores
+
+### Data & Ingestion Tab
+- **Pinecone ingestion pipeline** — Chunk → Embed (Google AI 768d) → Upsert
+- **Sample document loader** — One-click load of LangGraph, RAG, and MAS reference docs
+- **MongoDB session browser** — View all agent sessions with latency, message counts, and Q/A previews
+
+### Metrics & Observability Tab
+- **RAG Triad (RAGAS)** — Faithfulness, Answer Relevance, Context Precision, Context Recall
+- **Hallucination Detection** — NLI entailment score, source coverage, confidence, hallucination risk
+- **LLM-as-Judge** — Completeness, groundedness, conciseness, coherence with configurable judge model
+- **Ranking Metrics** — MRR@10, NDCG@10, Precision@5, Recall@10, MAP@10
+- **Governance & Compliance** — PII events, policy violations, token usage, estimated cost
+- **NLI & Chunking Insights** — Detailed explanations of entailment, hallucination, and chunking checks
+
+### Settings Tab
+- **Free model selection** — 12 model options across Groq, Gemini, OpenRouter, Together.ai, HuggingFace, Ollama
+- **Custom MCP server URL** — Connect any MCP-compatible endpoint (SSE or WebSocket)
+- **Ollama base URL** — Configure local Ollama instance
+- **Guardrail reference panel** — Shows all guardrail categories, methods, and severity levels
+
+---
+
+## Guardrails (Deterministic Sidecar Thread)
+
+All guardrails run synchronously alongside the agent pipeline. No external ML calls — pure deterministic logic.
+
+| Guardrail | Category | Method | Severity |
+|-----------|----------|--------|----------|
+| Prompt Injection | LlamaFirewall | Regex pattern matching | Critical |
+| Toxicity Filter | LlamaFirewall | Keyword detection | High |
+| Code Injection | LlamaFirewall | Script pattern matching | Critical |
+| PII Detection | NeMo Guardrails | Email/phone/SSN/CC regex | Medium |
+| Topic Policy | NeMo Guardrails | Restricted topic list | Medium |
+| Dialogue Flow | NeMo Guardrails | Input length & coherence | Low |
+| Entailment Check | Custom NLI | Keyword overlap scoring | Medium |
+| Hallucination Risk | Custom NLI | Claim/hedge phrase ratio | High |
+| Chunking Quality | Custom NLI | Word count & sentence coherence | Low |
+| Bias Detection | Custom NLI | Stereotyping language patterns | Medium |
+
+---
+
+## Free LLM Providers
+
+All models require only a free-tier API key (or no key for Ollama):
+
+| Provider | Models | Free Tier |
+|----------|--------|-----------|
+| **Groq** | Llama 3.1 8B, Llama 3.2 3B, Gemma 2 9B, Mixtral 8x7B | Yes — [console.groq.com](https://console.groq.com) |
+| **Google Gemini** | Gemini 1.5 Flash (1M context) | Yes — [aistudio.google.com](https://aistudio.google.com) |
+| **OpenRouter** | Llama 3.2 3B Free, Gemma 3 12B Free | Yes — [openrouter.ai](https://openrouter.ai) |
+| **Together.ai** | Llama 3 8B Chat | Yes — [api.together.xyz](https://api.together.xyz) |
+| **HuggingFace** | Phi-3 Mini | Yes — [huggingface.co](https://huggingface.co) |
+| **Ollama** | Llama 3, Mistral 7B, Phi-3 Mini | 100% local & free |
+
+---
+
+## Running Locally
+
+### 1. Frontend
+
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-Access the UI at: **http://localhost:3000**
 
-### 2. Start the Python Backend
-The backend manages the orchestration of the Supervisor, Researcher, and Writer agents.
+Access at **http://localhost:3000**
+
+### 2. Backend
+
 ```bash
 cd backend
 python3 -m venv venv
-source venv/bin/activate
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-
-# Run the FastAPI server
 python main.py
 ```
-*(The backend runs on http://localhost:8000)*
+
+Backend runs at **http://localhost:8000**
+
+### 3. Environment Variables
+
+Create `backend/.env`:
+
+```env
+# Required: at least one LLM provider
+GROQ_API_KEY=your-groq-key
+GOOGLE_API_KEY=your-google-key
+
+# Optional: additional free providers
+OPENROUTER_API_KEY=your-openrouter-key
+TOGETHER_API_KEY=your-together-key
+HUGGINGFACE_API_KEY=your-hf-token
+
+# Optional: persistence
+MONGODB_URI=mongodb+srv://...
+PINECONE_API_KEY=your-pinecone-key
+
+# Optional: local Ollama
+OLLAMA_BASE_URL=http://localhost:11434
+```
+
+The backend **gracefully degrades** — missing keys trigger `[MOCK]` responses so demos never crash.
 
 ---
 
-## 🌍 Deployment Guide
+## Deployment
 
-To deploy this project to the public internet using free tiers, we recommend splitting the deployment: **Vercel** for the frontend and **Render** for the Python backend.
+### Frontend → Vercel (Free)
+1. Push to GitHub
+2. Import at [vercel.com](https://vercel.com) — set Root Directory to `frontend`
+3. Add env var: `NEXT_PUBLIC_API_URL=https://your-backend.onrender.com`
 
-### Part 1: Deploying the Frontend (Vercel)
-Vercel natively supports Next.js and is entirely free for hobby projects.
-
-1. Push this codebase to your GitHub repository.
-2. Log in to [Vercel](https://vercel.com/) and click **Add New Project**.
-3. Import your GitHub repository (`monesan07/aiMASProject`).
-4. **CRITICAL:** Set the **Root Directory** to `frontend`.
-5. Under **Environment Variables**, add:
-   * `NEXT_PUBLIC_API_URL` = `https://your-backend-url.onrender.com` *(You will get this URL from Render in Part 2. Until then, you can leave it out or deploy the backend first).*
-6. Click **Deploy**.
-
-### Part 2: Deploying the Backend (Render)
-Render offers a free tier for Python web services.
-
-1. Log in to [Render](https://render.com/) and click **New > Web Service**.
-2. Connect your GitHub repository (`monesan07/aiMASProject`).
-3. Set the following configuration:
-   * **Root Directory:** `backend`
-   * **Environment:** `Python 3`
-   * **Build Command:** `pip install -r requirements.txt`
-   * **Start Command:** `uvicorn main:app --host 0.0.0.0 --port $PORT`
-4. Expand **Environment Variables** and add your secrets securely:
-   * `MONGODB_URI` = `mongodb+srv://...` (From your atlas-credentials)
-   * `PINECONE_API_KEY` = `your-pinecone-key`
-   * `GOOGLE_API_KEY` = `your-gemini-key`
-5. Click **Create Web Service**. 
-
-*(Note: The first deployment on Render's free tier can take a few minutes to spin up).*
+### Backend → Render (Free)
+1. New Web Service at [render.com](https://render.com)
+2. Root Directory: `backend` · Build: `pip install -r requirements.txt` · Start: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+3. Add all environment variables in the Render dashboard
 
 ---
 
-## 🛠 Features Demonstrated
-* **LangGraph Orchestration:** A Supervisor node dynamically evaluates the conversation state and routes execution to specialized workers.
-* **Interactive DnD Canvas:** An interactive React Flow canvas allowing users to drag and drop agents and resources (like Pinecone and MCP servers) into the workflow.
-* **Resilient Mocking:** If API keys are missing or rate limits are hit, the backend gracefully falls back to `[MOCK]` AI responses, ensuring demonstrations during live interviews never crash.
+## API Endpoints
 
-
-make the UI grey or white theme instead of current black or dark. As the UI we should be able to select the MCP and more MCP and other tools. Give the options and other features for customisation . 
-
-Create and integrate a free model API as in plan. 
-Put options to put all kinds of guardrails too and include that in view, Put all deterministic and custom guardrails in sidecar thread. Show different guardrails like llamafirewal, Nemo and other. 
-
-Put NLI interference and checks for chunking and hallucinatin. 
-
-Create another tab with all the metrics for monitoring for governance and obserbability , hallucination identification metrics, RAG metrics RAGtriad, custom LLM as judge and other custom metric , include all the metric like ranking and others.
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `GET /` | GET | Health check, LLM chain status |
+| `POST /api/chat` | POST | Run multi-agent pipeline |
+| `GET /api/models` | GET | List all available free models |
+| `POST /api/guardrails/check` | POST | Evaluate guardrails standalone |
+| `POST /api/ingest` | POST | Ingest document into Pinecone |
+| `GET /api/sessions` | GET | Fetch recent MongoDB sessions |
+| `GET /api/metrics` | GET | Aggregated observability metrics |

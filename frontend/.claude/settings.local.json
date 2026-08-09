@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 *)",
+      "Bash(rm /Users/santoshsingh/Documents/aimas/aiMASProject/frontend/package-lock.json)",
+      "Bash(npm install *)",
+      "mcp__pycharm__list_directory_tree"
+    ]
+  }
+}

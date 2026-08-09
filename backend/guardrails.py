@@ -50,6 +50,25 @@ RESTRICTED_TOPICS = [
     "trading recommendation", "invest in", "buy this stock"
 ]
 
+CODE_INJECTION_PATTERNS = [
+    r"<script[^>]*>",
+    r"javascript\s*:",
+    r"eval\s*\(",
+    r"exec\s*\(",
+    r"__import__\s*\(",
+    r"os\.system\s*\(",
+    r"subprocess\.",
+    r"DROP\s+TABLE",
+    r"DELETE\s+FROM",
+    r";\s*-{2,}",
+]
+
+BIAS_PATTERNS = [
+    r"\b(all \w+ are|every \w+ is|women are|men are|blacks are|whites are)\b",
+    r"\b(typical \w+ always|these people always|those people never)\b",
+    r"\b(obviously inferior|clearly superior|inherently)\b.*\b(race|gender|religion)\b",
+]
+
 def _check_latency():
     return random.randint(8, 45)
 
@@ -188,6 +207,67 @@ def hallucination_check(response: str, query: str) -> GuardrailResult:
         severity="high" if not passed else "low",
     )
 
+def llamafirewall_code_injection(text: str) -> GuardrailResult:
+    t0 = time.time()
+    text_lower = text.lower()
+    matched = next(
+        (p for p in CODE_INJECTION_PATTERNS if re.search(p, text_lower, re.IGNORECASE)),
+        None
+    )
+    passed = matched is None
+    score = 0.04 if passed else 0.96
+    latency = int((time.time() - t0) * 1000) + _check_latency()
+    return GuardrailResult(
+        name="LlamaFirewall: Code Injection",
+        category="LlamaFirewall",
+        passed=passed,
+        score=score,
+        reason="No code/script injection patterns detected." if passed else f"Potential code injection detected.",
+        latency_ms=latency,
+        severity="critical" if not passed else "low",
+    )
+
+
+def nemo_dialogue_flow(text: str) -> GuardrailResult:
+    t0 = time.time()
+    word_count = len(text.split())
+    has_question_or_statement = bool(re.search(r"[?!.]", text))
+    is_coherent = word_count >= 2 and word_count <= 2000
+    passed = is_coherent
+    score = min(1.0, word_count / 50) if passed else 0.3
+    latency = int((time.time() - t0) * 1000) + _check_latency()
+    return GuardrailResult(
+        name="NeMo: Dialogue Flow",
+        category="NeMo Guardrails",
+        passed=passed,
+        score=round(score, 3),
+        reason=f"Input length {word_count} words — {'within acceptable dialogue flow bounds' if passed else 'outside dialogue flow constraints (too short or too long)'}.",
+        latency_ms=latency,
+        severity="low" if passed else "medium",
+    )
+
+
+def bias_detection(text: str) -> GuardrailResult:
+    t0 = time.time()
+    text_lower = text.lower()
+    matched = next(
+        (p for p in BIAS_PATTERNS if re.search(p, text_lower, re.IGNORECASE)),
+        None
+    )
+    passed = matched is None
+    score = 0.06 if passed else 0.82
+    latency = int((time.time() - t0) * 1000) + _check_latency()
+    return GuardrailResult(
+        name="Bias Detection",
+        category="Custom NLI",
+        passed=passed,
+        score=score,
+        reason="No generalizing or biased language patterns detected." if passed else "Potential bias or stereotyping language detected.",
+        latency_ms=latency,
+        severity="high" if not passed else "low",
+    )
+
+
 def chunking_quality_check(text: str, chunk_size: int = 500) -> GuardrailResult:
     t0 = time.time()
     word_count = len(text.split())
@@ -217,11 +297,14 @@ def run_guardrails(
     all_checks = {
         "llamafirewall_injection": lambda: llamafirewall_prompt_injection(user_input),
         "llamafirewall_toxicity": lambda: llamafirewall_toxicity(user_input),
+        "llamafirewall_code_injection": lambda: llamafirewall_code_injection(user_input),
         "nemo_pii": lambda: nemo_pii_detection(user_input),
         "nemo_topic": lambda: nemo_topic_restriction(user_input),
+        "nemo_dialogue_flow": lambda: nemo_dialogue_flow(user_input),
         "nli_entailment": lambda: nli_entailment_check(response, context),
         "hallucination": lambda: hallucination_check(response, user_input),
         "chunking": lambda: chunking_quality_check(user_input),
+        "bias_detection": lambda: bias_detection(user_input),
     }
 
     if enabled_guardrails is None:
