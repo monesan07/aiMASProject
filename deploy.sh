@@ -5,40 +5,60 @@
 # ==============================================================================
 
 set -e
-
-# Ensure script always runs from its own directory
 cd "$(dirname "$0")"
 
 echo "🚀 Starting Unified Vercel Deployment..."
 
 # 1. Check for Vercel CLI
 if ! command -v vercel &> /dev/null; then
-    echo "📦 Vercel CLI not found. Installing via npm..."
-    npm install -g vercel
+    echo "📦 Installing Vercel CLI..."
+    npm install -g vercel@latest
 else
-    echo "✅ Vercel CLI is already installed."
+    echo "✅ Vercel CLI: $(vercel --version)"
 fi
 
-# 2. Prepare Python Environment for Vercel
+# 2. Resolve the actual Next.js canary semver from npm so Vercel's version
+#    check receives a parseable version string (e.g. 16.3.0-canary.50)
+#    instead of the bare dist-tag "canary".
+echo "🔍 Resolving Next.js canary version from npm..."
+NEXT_CANARY=$(npm view next@canary version 2>/dev/null || true)
+
+if [ -n "$NEXT_CANARY" ]; then
+    echo "📦 Resolved → next@$NEXT_CANARY"
+    python3 - <<PYEOF
+import json
+
+with open('frontend/package.json') as f:
+    pkg = json.load(f)
+
+pkg['dependencies']['next'] = '$NEXT_CANARY'
+pkg['devDependencies']['eslint-config-next'] = '$NEXT_CANARY'
+
+with open('frontend/package.json', 'w') as f:
+    json.dump(pkg, f, indent=2)
+
+print("✅ frontend/package.json patched with resolved version")
+PYEOF
+else
+    echo "⚠️  npm view failed — keeping existing Next.js version in package.json"
+fi
+
+# 3. Verify required files
 echo "🐍 Verifying backend requirements..."
-if [ ! -f "backend/requirements.txt" ]; then
-    echo "❌ Error: backend/requirements.txt not found!"
-    exit 1
-fi
+[ -f "backend/requirements.txt" ] || { echo "❌ backend/requirements.txt not found!"; exit 1; }
+[ -f "requirements.txt" ]         || { echo "❌ requirements.txt not found at root!"; exit 1; }
+[ -f "api/index.py" ]             || { echo "❌ api/index.py not found!"; exit 1; }
+[ -f "vercel.json" ]              || { echo "❌ vercel.json not found!"; exit 1; }
 
-# 3. Ensure vercel.json exists in root
-if [ ! -f "vercel.json" ]; then
-    echo "❌ Error: vercel.json not found in root directory! Please create it first."
-    exit 1
-fi
-
-# 4. Authenticate Vercel (Will prompt if not logged in)
+# 4. Authenticate
 echo "🔐 Checking Vercel authentication..."
-vercel whoami || vercel login
+vercel whoami 2>/dev/null || vercel login
 
-# 5. Deploy to Vercel (Production)
-echo "⚡ Deploying Frontend (Next.js) and Backend (FastAPI) to Vercel..."
+# 5. Deploy
+echo "⚡ Deploying to Vercel (production)..."
 vercel --prod --yes
 
-echo "🎉 Deployment initiated successfully!"
-echo "⚠️  IMPORTANT: Don't forget to configure your Environment Variables in the Vercel Dashboard."
+echo ""
+echo "🎉 Deployment complete!"
+echo "⚠️  Set these environment variables in the Vercel Dashboard:"
+echo "    MONGODB_URI, GROQ_API_KEY, GOOGLE_API_KEY, PINECONE_API_KEY, etc."
