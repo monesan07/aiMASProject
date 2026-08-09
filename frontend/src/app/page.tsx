@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import axios from "axios";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Message = { role: "user" | "assistant"; content: string; guardrails?: GuardrailResult[] };
