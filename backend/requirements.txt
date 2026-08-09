@@ -2,8 +2,12 @@ fastapi
 uvicorn
 langgraph
 langchain
+langchain-core
 langchain-google-genai
+langchain-pinecone
+langgraph-checkpoint-mongodb
 motor
 pinecone-client
+pymongo
 pydantic
 python-dotenv
