@@ -77,3 +77,13 @@ Render offers a free tier for Python web services.
 * **LangGraph Orchestration:** A Supervisor node dynamically evaluates the conversation state and routes execution to specialized workers.
 * **Interactive DnD Canvas:** An interactive React Flow canvas allowing users to drag and drop agents and resources (like Pinecone and MCP servers) into the workflow.
 * **Resilient Mocking:** If API keys are missing or rate limits are hit, the backend gracefully falls back to `[MOCK]` AI responses, ensuring demonstrations during live interviews never crash.
+
+
+make the UI grey or white theme instead of current black or dark. As the UI we should be able to select the MCP and more MCP and other tools. Give the options and other features for customisation . 
+
+Create and integrate a free model API as in plan. 
+Put options to put all kinds of guardrails too and include that in view, Put all deterministic and custom guardrails in sidecar thread. Show different guardrails like llamafirewal, Nemo and other. 
+
+Put NLI interference and checks for chunking and hallucinatin. 
+
+Create another tab with all the metrics for monitoring for governance and obserbability , hallucination identification metrics, RAG metrics RAGtriad, custom LLM as judge and other custom metric , include all the metric like ranking and others.
