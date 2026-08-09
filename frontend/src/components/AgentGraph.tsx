@@ -25,7 +25,7 @@ const Sidebar = () => {
   };
 
   return (
-    <div className="absolute top-0 right-0 w-64 h-full bg-slate-900 border-l border-slate-800 p-4 shadow-xl z-10 flex flex-col gap-4">
+    <div className="w-64 flex-shrink-0 h-full bg-slate-900/90 backdrop-blur-md border-l border-slate-800 p-4 shadow-xl z-10 flex flex-col gap-4 overflow-y-auto">
       <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-2">Available Agents</h3>
       
       <div 
@@ -201,22 +201,24 @@ const DnDFlow = ({ activeNode }: { activeNode: string | null }) => {
   }, [activeNode, setNodes]);
 
   return (
-    <div className="flex w-full h-full relative" ref={reactFlowWrapper}>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onDrop={onDrop}
-        onDragOver={onDragOver}
-        fitView
-        colorMode="dark"
-        className="bg-transparent pr-64" // Add right padding so it doesn't overlap sidebar
-      >
-        <Background gap={16} color="#334155" />
-        <Controls position="bottom-left" />
-      </ReactFlow>
+    <div className="flex w-full h-full relative flex-row" ref={reactFlowWrapper}>
+      <div className="flex-1 h-full relative">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onDrop={onDrop}
+          onDragOver={onDragOver}
+          fitView
+          colorMode="dark"
+          className="bg-transparent"
+        >
+          <Background gap={16} color="#334155" />
+          <Controls position="bottom-left" />
+        </ReactFlow>
+      </div>
       <Sidebar />
     </div>
   );

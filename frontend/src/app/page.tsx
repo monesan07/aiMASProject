@@ -54,7 +54,7 @@ export default function Home() {
   return (
     <div className="flex h-screen w-full bg-slate-950 text-slate-200 font-sans overflow-hidden">
       {/* Left Panel: Chat Interface */}
-      <div className="w-1/2 flex flex-col border-r border-slate-800 shadow-2xl z-10 relative bg-slate-900/50 backdrop-blur-xl">
+      <div className="w-[450px] flex-shrink-0 flex flex-col border-r border-slate-800 shadow-2xl z-20 relative bg-slate-900/50 backdrop-blur-xl">
         <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-950">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-indigo-500/20 rounded-lg border border-indigo-500/30">
@@ -132,7 +132,7 @@ export default function Home() {
       </div>
 
       {/* Right Panel: Simulation Canvas */}
-      <div className="w-1/2 relative bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black">
+      <div className="flex-1 relative bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black overflow-hidden">
         <div className="absolute top-6 left-6 z-10">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
