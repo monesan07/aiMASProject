@@ -13,7 +13,7 @@
     "axios": "^1.19.0",
     "framer-motion": "^13.0.0",
     "lucide-react": "^1.30.0",
-    "next": "canary",
+    "next": "16.3.1-canary.9",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
@@ -23,7 +23,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "canary",
+    "eslint-config-next": "16.3.1-canary.9",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

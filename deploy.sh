@@ -28,16 +28,22 @@ if [ -n "$NEXT_CANARY" ]; then
     python3 - <<PYEOF
 import json
 
+# Patch root package.json (Vercel reads this for framework detection)
+with open('package.json') as f:
+    root = json.load(f)
+root['dependencies']['next'] = '$NEXT_CANARY'
+with open('package.json', 'w') as f:
+    json.dump(root, f, indent=2)
+
+# Patch frontend/package.json (actual build)
 with open('frontend/package.json') as f:
     pkg = json.load(f)
-
 pkg['dependencies']['next'] = '$NEXT_CANARY'
 pkg['devDependencies']['eslint-config-next'] = '$NEXT_CANARY'
-
 with open('frontend/package.json', 'w') as f:
     json.dump(pkg, f, indent=2)
 
-print("✅ frontend/package.json patched with resolved version")
+print("✅ package.json and frontend/package.json patched with $NEXT_CANARY")
 PYEOF
 else
     echo "⚠️  npm view failed — keeping existing Next.js version in package.json"
